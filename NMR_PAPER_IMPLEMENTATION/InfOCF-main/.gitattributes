@@ -1,0 +1,7 @@
+# Ignore sum_bench and output folders completely with regards to language detection
+sum_bench/* linguist-vendored
+output/* linguist-vendored
+
+# Ignore knowledge bases and queries in language detection
+*.cl linguist-languagae=clKnowledgeBases
+*.clq linguist-languagae=clQueries
