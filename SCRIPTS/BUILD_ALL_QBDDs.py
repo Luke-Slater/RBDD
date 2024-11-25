@@ -9,6 +9,5 @@ pairs = [(6,6),(8,8),(10,10),(12,12),(14,14),(16,16),(18,18),(20,20)]
 
 for pair in pairs:
     command = ["python3", "SCRIPTS/PAR_BUILD_QUERIES.py", str(pair[0]), str(pair[1])]
-
     result = subprocess.run(command, capture_output=False)
     

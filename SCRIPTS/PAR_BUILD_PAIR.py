@@ -47,7 +47,7 @@ def process_pair(pair, start, end):
         try: 
             with open(file_name, 'r') as file: 
                 n_ = int(file.readline().strip("\n")) 
-                if n_ < 200: continue
+                if n_ < 2: continue
         except FileNotFoundError: n_ = 9999999999
 
         conditionals = []

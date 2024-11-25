@@ -9,26 +9,28 @@ class Node:
         self.mark = mark
         self.left = left
         self.right = right
-        self.ranks = None
+        self.ranks = set()
 
     def find_ranks(self, set):
         if self.val != "X":
             set = set | {self.val}
             self.ranks = set
+            return self.ranks
         else:
             set_left = self.left.find_ranks(set)
             set_right = self.right.find_ranks(set)
             set = set | set_left | set_right
             self.ranks = set
+            return self.ranks
 
     def write_to_file(self, name):
         self.mark = not self.mark
-        if self.left is None:
+        if self.left is None or self.left == -1:
             left_id = -1
         else:
             left_id = self.left.id
             if self.mark ^ self.left.mark: self.left.write_to_file(name)
-        if self.right is None:
+        if self.right is None or self.right == -1:
             right_id = -1
         else:
             right_id = self.right.id
@@ -47,25 +49,30 @@ class RBDD:
     def from_file(file):
         with open(file, 'r') as file:
             content = file.readlines()
+        content = [x.strip("\n") for x in content]
         content = content[3:]
-        nodes = [Node() for i in range(0, len(content))]
+        nodes = {}
+        min_index = 99999999999
+        min_id = ""
         for line in content:
             data = line.split(" ")
             id = int(data[0])
             index = int(data[1])
+            if index < min_index:
+                min_index = index
+                min_id = id
             val = data[2]
+            if val != "X":
+                val = int(val)
             left = int(data[3])
             right = int(data[4])
             nodes[id] = Node(id=id, index=index, val=val, left=left, right=right)
-        for node in nodes:
+        for node in nodes.values():
             if node.left != -1:
                 node.left = nodes[node.left]
             if node.right != -1:
                 node.right = nodes[node.right]
-        for node in nodes:
-            if node.index == 1:
-                node.find_ranks(set())
-                return node
+        return nodes[min_id]
 
     @staticmethod
     def build_sysz(K, ordering):
@@ -73,7 +80,7 @@ class RBDD:
         global num_nodes
 
         max_rank = len(K)-1
-        num_nodes = 0
+        num_nodes = 1
 
         def build_step(K, ass, ordering):
             global max_rank
@@ -132,6 +139,68 @@ class RBDD:
         node = Node(id=0, index=1, val="X")
         node.left = build_step(K, [~Atom(ordering[1])], ordering)
         node.right = build_step(K, [Atom(ordering[1])], ordering)
+        return RBDD.reducè(node, ordering, num_nodes)
+    
+    @staticmethod
+    def build_vector(f, ordering):
+        global max_rank
+        global num_nodes
+
+        max_rank = len(f)-1
+        num_nodes = 1
+
+        def build_step(f, ass, ordering):
+            global max_rank
+            global num_nodes
+
+            def process_node(f, ass):
+                global max_rank
+                global num_nodes
+
+                f = [f_.simplified(assumptions=ass) for f_ in f]
+                #r = [k.satisfied(model=ass) for k in K]
+
+                if any(r == Atom(True) for r in f):
+                    i = f.index(Atom(True))
+                    return "RANK", i, f
+                elif all(r == Atom(False) for r in f):
+                    return "INF", -1, f
+                else:
+                    return "CONT", -1, f
+
+
+            num_nodes += 1
+            node = Node(id=num_nodes)
+            res, ran, f = process_node(f, ass)
+            if res == "INF":
+                node.val = -1
+                node.index = len(ordering)
+                return node
+            elif res == "RANK":
+                node.val = ran
+                node.index = len(ordering)
+                return node
+            elif res == "CONT":
+                node.val = "X"
+                index = len(ass) + 1
+
+                v = ordering[index]
+                while True:
+                    pattern = r'\b' + re.escape(str(v)) + r'\b'
+                    contains = [re.search(pattern, str(formula)) for formula in f]
+                    if not any(contains):
+                        index += 1
+                        v = ordering[index]
+                    else:
+                        break   
+                v = Atom(v)
+                node.index = index
+                node.left = build_step(f, ass + [~v], ordering)
+                node.right = build_step(f, ass + [v], ordering)
+                return node
+        node = Node(id=0, index=1, val="X")
+        node.left = build_step(f, [~Atom(ordering[1])], ordering)
+        node.right = build_step(f, [Atom(ordering[1])], ordering)
         return RBDD.reducè(node, ordering, num_nodes)
 
     @staticmethod

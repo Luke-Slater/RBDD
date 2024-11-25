@@ -6,6 +6,7 @@ from pyeda.inter import expr
 from PARSER.Parser import Parser
 from RBDD.RBDD import RBDD
 from SAT_STUFF.GENERAL_SAT import SAT
+from RBDD.PROCEDURES import PROCEDURES
 import pickle, time, os, re
 import multiprocessing
 
@@ -42,18 +43,27 @@ def process_pair(pair, start, end):
                 queries.append((And(q[0], q[1]),And(q[0],Neg(q[1]))))
                 
         
-                O.append([x for x in o if x in [y[1] for y in temp]])
+                #O.append([x for x in o if x in [y[1] for y in temp]])
+                O.append(o)
 
+
+        rbdd = RBDD.from_file("DATA/NMR_PAPER_RBDDs/" + instance + ".txt")
+        rbdd.find_ranks(set())
         total = 0
         for x, q in enumerate(queries):
             q_1 = q[0]
             q_2 = q[1]
             f = [q_1,q_2]
             start = time.perf_counter()
-            r, n = RBDD.build_sysz(f,[None]+O[x])
+            cbdd, n = RBDD.build_vector(f,[None]+O[x])
             #r_, n_ = OBDD.build(q_2,[None]+O[x])
             end = time.perf_counter()
             #r.write_to_file(file_name)
+            total += end-start
+            cbdd.find_ranks(set())
+            start = time.perf_counter()
+            result = PROCEDURES.entails(rbdd,cbdd)
+            end = time.perf_counter()
             total += end-start
         return total
 
