@@ -7,7 +7,7 @@
 
 
 
-import os
+import os, time
 import pandas as pd
 from parser.Wrappers import parse_belief_base, parse_queries
 from inference.inference_operator import InferenceOperator
@@ -59,6 +59,7 @@ pairs = [(6,6),(8, 8), (10, 10), (12, 12), (14, 14), (16, 16), (18, 18),
 for pair in pairs:
     i = pair[0]
     j = pair[1]
+    total_time = 0
     for l in range(0, 100):
 
         # set belief_base/queries location
@@ -78,10 +79,13 @@ for pair in pairs:
         # print(f'p-entailment on {i} {j} {l}')
         # results0 = pent.inference(queries, total_timeout=total_timeout, preprocessing_timeout=preprocessing_timeout, inference_timeout=inference_timeout, multi_inference=multi_inference)          
         
+        start = time.perf_counter()
         sysz = InferenceOperator(belief_base, inference_system='system-z', smt_solver=smt_solver)
-        print(f'system-z inf on {i} {j} {l}')
+        # print(f'system-z inf on {i} {j} {l}')
         results1 = sysz.inference(queries, total_timeout=total_timeout, preprocessing_timeout=preprocessing_timeout, inference_timeout=inference_timeout, multi_inference=multi_inference)
-                    
+        end = time.perf_counter()
+        total_time += end - start
+
         # sysz = InferenceOperator(belief_base, inference_system='system-z', smt_solver=alt_smt_solver)
         # print(f'system-z inf on {i} {j} {l}')
         # results2 = sysz.inference(queries, total_timeout=total_timeout, preprocessing_timeout=preprocessing_timeout, inference_timeout=inference_timeout, multi_inference=multi_inference)
@@ -117,6 +121,9 @@ for pair in pairs:
         
         # update result data frame with results from current iteration
         all_results = pd.concat([all_results, current_results], ignore_index=True)
+
+    #print average time for current pair
+    print(f"Average time for {i} {j} is {(total_time/1000)*1000}")
 
 # print without verbose query, belief_base, and queries columns for visibility/display space reasons
 print(f"\nmulti_inference {multi_inference}\n")
