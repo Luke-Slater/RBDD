@@ -2,13 +2,23 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from pysat.formula import *
-from pyeda.inter import expr
 from PARSER.Parser import Parser
 from RBDD.RBDD import RBDD
-from SAT_STUFF.GENERAL_SAT import SAT
 from RBDD.PROCEDURES import PROCEDURES
-import pickle, time, os, re
+import time, os
 import multiprocessing
+
+def tuple_to_formula(tup):
+    if tup[0] == "AND":
+        return And(tuple_to_formula(tup[1]), tuple_to_formula(tup[2]))
+    elif tup[0] == "OR":
+        return Or(tuple_to_formula(tup[1]), tuple_to_formula(tup[2]))
+    elif tup[0] == "IMPLIES":
+        return Implies(tuple_to_formula(tup[1]), tuple_to_formula(tup[2]))
+    elif tup[0] == "NEG":
+        return Neg(tuple_to_formula(tup[1]))
+    elif tup[0] == "ATOM":
+        return Atom(int(tup[1]))
 
 def process_pair(pair, start, end):
     pair_1 = pair[0]
@@ -28,24 +38,17 @@ def process_pair(pair, start, end):
         file_name = "DATA/NMR_PAPER_QBDDs/" + instance + ".txt"
         O = []
 
-        with open("DATA/RAW_QUERIES_NMR_PAPER/randomQueries_" + str(pair_1) + "_" + str(pair_2) + "_" + str(i) + ".clq") as file:
-            queries = []
-            for j in range(0,10):
-                temp = sigs
-                string = file.readline().strip("\n")
-                for k, s in enumerate(sig):
-                    pattern = r'\b' + re.escape(s) + r'\b'
-                    matches = re.findall(pattern, string)
-                    if len(matches) == 0:
-                        temp = [x for x in temp if x[0] != s]
-                exp = expr(string)
-                q = (c.toPySAT(exp.xs[1],sig), c.toPySAT(exp.xs[0],sig))
-                queries.append((And(q[0], q[1]),And(q[0],Neg(q[1]))))
-                
-        
-                #O.append([x for x in o if x in [y[1] for y in temp]])
+        with open("DATA/BELIEF_BASES_ENCODED/" + instance + ".txt") as file:
+            conditionals = []
+            for line in file:
+                conditionals.append(eval(line.strip("\n")))
+            conditionals = [tuple_to_formula(c) for c in conditionals]
+            for q in conditionals:
                 O.append(o)
 
+        queries = []
+        for c in conditionals:
+            queries.append((And(c.left,c.right),And(c.left,Neg(c.right))))
 
         rbdd = RBDD.from_file("DATA/NMR_PAPER_RBDDs/" + instance + ".txt")
         rbdd.find_ranks(set())
